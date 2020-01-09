@@ -2,7 +2,7 @@ from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
 
-class ShiftConv1D(layers.Layer):
+class OctConv1D(layers.Layer):
     def __init__(self, filters, alpha, low_tau, high_tau, fs
                  kernel_size=3, strides=1, padding='same',
                  kernel_initializer='glorot_uniform',
@@ -16,9 +16,9 @@ class ShiftConv1D(layers.Layer):
 
         self.alpha = alpha
         self.filters = filters
-        self.low_tau = low_tau
-        self.high_tau = high_tau
-        self.fs = fs
+        #self.low_tau = low_tau
+        #self.high_tau = high_tau
+        #self.fs = fs
         # optional values
         self.kernel_size = kernel_size
         self.strides = strides
@@ -81,3 +81,49 @@ class ShiftConv1D(layers.Layer):
         # Input = [X^H, X^L]
         assert len(inputs) == 2
         high_input, low_input = inputs
+        # High -> High conv
+        high_to_high = K.conv1d(high_input, self.high_to_high_kernel,
+                                strides=self.strides, padding=self.padding,
+                                data_format='channels_last')
+        # High -> Low conv
+        high_to_low = K.pool1d(high_input, 2, strides=2, pool_mode='max')
+        high_to_low = K.conv1d(high_to_low, self.high_to_low_kernel,
+                               strides=self.strides, padding=self.padding,
+                               data_format='channels_last')
+        # Low -> High conv
+        low_to_high = K.conv1d(low_input, self.low_to_high_kernel,
+                               strides=self.strides, padding=self.padding,
+                               data_format='channels_last')
+        low_to_high = K.repeat_elements(low_to_high, axis=1)
+        # Low -> Low conv
+        low_to_low = K.conv1d(low_input, self.low_to_low_kernel,
+                              strides=self.strides, padding=self.padding,
+                              data_format='channels_last')
+        # Cross Add
+        high_add = high_to_high + low_to_high
+        low_add = high_to_low + low_to_low
+
+        return [high_add, low_add]
+
+    def compute_output_shape(self, input_shapes):
+        high_in_shape, low_in_shape = input_shapes
+        high_out_shape = (*high_in_shape[: 2], self.high_channels)
+        low_out_shape = (*low_in_shape[: 2], self.low_channels)
+
+        return [high_out_shape, low_out_shape]
+
+    def get_config(self):
+        base_config = super().get_config()
+        out_config = {
+            **base_config,
+            "filters": self.filters,
+            "alpha": self.alpha,
+            "filters": self.filters,
+            "kernel_size": self.kernel_size,
+            "strides": self.strides,
+            "padding": self.padding,
+            "kernel_initializer": self.kernel_initializer,
+            "kernel_regularizer": self.kernel_regularizer,
+            "kernel_constraint": self.kernel_constraint,
+        }
+        return out_config
