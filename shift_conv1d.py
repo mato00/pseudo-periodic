@@ -4,7 +4,7 @@ from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
 
 
-class ShiftConv1D(layers.layer):
+class ShiftConv1D(layers.Layer):
     def __init__(self, filters, tau, fs,
                  kernel_size=3, strides=1, padding='same',
                  kernel_initializer='glorot_uniform',
@@ -38,12 +38,12 @@ class ShiftConv1D(layers.layer):
         self.cross_kernel = self.add_weight(name='cross_kernel',
                                             shape=(1,
                                                    self.input_channels,
-                                                   self.filters),
+                                                   self.input_channels),
                                             initializer=self.kernel_initializer,
                                             regularizer=self.kernel_regularizer,
                                             constraint=self.kernel_constraint)
         self.conv_kernel = self.add_weight(name='conv_kernel',
-                                           shape=(*self.kernel_size,
+                                           shape=(self.kernel_size,
                                                   self.input_channels,
                                                   self.filters),
                                            initializer=self.kernel_initializer,
@@ -61,6 +61,7 @@ class ShiftConv1D(layers.layer):
         cross_ch = K.conv1d(shift_inputs, self.cross_kernel,
                             strides=1, padding=self.padding,
                             data_format='channels_last')
+        cross_ch = tf.nn.leaky_relu(cross_ch)
         shift_outputs = K.conv1d(cross_ch, self.conv_kernel,
                                  strides=self.strides, padding=self.padding,
                                  data_format='channels_last')
@@ -68,7 +69,7 @@ class ShiftConv1D(layers.layer):
         return shift_outputs
 
     def compute_output_shape(self, input_shape):
-        out_shape = (*input_shape[: 2], self.filters)
+        out_shape = (input_shape[: 2], self.filters)
 
         return out_shape
 
