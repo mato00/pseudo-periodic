@@ -1,3 +1,4 @@
+import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
@@ -12,7 +13,7 @@ class OctConv1D(layers.Layer):
                  kernel_constraint=None,
                  **kwargs):
 
-        assert alpha >= 1 and alpha <= fs
+        assert alpha >= 1
         assert beta >= 0 and beta <= 1
         assert filters > 0 and isinstance(filters, int)
         super().__init__(**kwargs)
@@ -81,7 +82,7 @@ class OctConv1D(layers.Layer):
                                 strides=self.strides, padding=self.padding,
                                 data_format="channels_last")
         # High -> Low conv
-        high_to_low = K.pool1d(high_input, self.alpha, strides=self.alpha, pool_mode="avg")
+        high_to_low = layers.AveragePooling1D(self.alpha, strides=self.alpha, padding="same")(high_input)
         high_to_low = K.conv1d(high_to_low, self.high_to_low_kernel,
                                strides=self.strides, padding=self.padding,
                                data_format="channels_last")
@@ -95,8 +96,8 @@ class OctConv1D(layers.Layer):
                                strides=self.strides, padding=self.padding,
                                data_format="channels_last")
         # Cross Add
-        high_add = high_to_high + low_to_high
-        low_add = high_to_low + low_to_low
+        high_add = tf.concat([high_to_high, low_to_high], axis=-1)
+        low_add = tf.concat([high_to_low, low_to_low], axis=-1)
 
         return [high_add, low_add]
 

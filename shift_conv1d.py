@@ -53,19 +53,16 @@ class ShiftConv1D(layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs):
+        inputs = layers.Dense(1)(inputs)
         left_shift = tf.roll(inputs, self.shift, axis=1)
         right_shift = tf.roll(inputs, (-1)*self.shift, axis=1)
-        shift_inputs = tf.stack([inputs, left_shift, right_shift], axis=-2)
-        shift_inputs = tf.squeeze(shift_inputs)
+        shift_inputs = tf.concat([inputs, left_shift, right_shift], axis=-1)
 
-        cross_ch = K.conv1d(shift_inputs, self.cross_kernel,
-                            strides=1, padding=self.padding,
-                            data_format='channels_last')
+        cross_ch = layers.Conv1D(self.input_channels, 1,
+                                 strides=self.strides, padding=self.padding)(shift_inputs)
         cross_ch = tf.nn.leaky_relu(cross_ch)
-        shift_outputs = K.conv1d(cross_ch, self.conv_kernel,
-                                 strides=self.strides, padding=self.padding,
-                                 data_format='channels_last')
-
+        shift_outputs = layers.Conv1D(self.filters, self.kernel_size,
+                                      strides=self.strides, padding=self.padding)(cross_ch)
         return shift_outputs
 
     def compute_output_shape(self, input_shape):
