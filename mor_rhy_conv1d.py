@@ -2,12 +2,11 @@ import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
-from shift_conv1d import ShiftConv1D
 
 
-class OctConv1D(layers.Layer):
+class MorRhyConv1D(layers.Layer):
     def __init__(self, filters, tau_mor, tau_rhy, fs,
-                 alpha=0.5, beta=2, kernel_size=3, dropout=0.2,
+                 alpha=0.5, beta=2, dropout=0.2,
                  strides=1, padding='same', mor_dilation=1,
                  rhy_dilation=1,
                  kernel_initializer='he_norm',
@@ -26,7 +25,6 @@ class OctConv1D(layers.Layer):
         self.fs = fs
         self.filters = filters
         # optional values
-        self.kernel_size = kernel_size
         self.dropout = dropout
         self.strides = strides
         self.padding = padding
@@ -49,8 +47,10 @@ class OctConv1D(layers.Layer):
         self.low_fs = self.fs / (self.beta * self.down)
         self.high_fs = self.fs / self.down
 
-        self.mor_kernal_size = (int(tau_mor * self.high_fs) - 1 // self.mor_dilation) + 1
-        self.rhy_kernal_size = (int(tau_rhy * self.low_fs) - 1 // self.rhy_dilation) + 1
+        self.mor_kernal_size = (int(tau_mor * self.high_fs) - 1 //
+                                self.mor_dilation) + 1
+        self.rhy_kernal_size = (int(tau_rhy * self.low_fs) - 1 //
+                                self.rhy_dilation) + 1
 
     def build(self, input_shape):
         assert len(input_shape) == 2
@@ -108,7 +108,7 @@ class OctConv1D(layers.Layer):
         assert len(inputs) == 2
         high_input, low_input = inputs
 
-        if downsample:
+        if self.downsample:
             high_input = layers.AveragePooling1D()(high_input)
             low_input = layers.AveragePooling1D()(low_input)
 
@@ -153,7 +153,6 @@ class OctConv1D(layers.Layer):
             "fs": self.fs,
             "alpha": self.alpha,
             "beta": self.beta,
-            "kernel_size": self.kernel_size,
             "dropout": self.dropout,
             "rhy_dilation": self.rhy_dilation,
             "mor_dilation": self.mor_dilation,
@@ -166,6 +165,7 @@ class OctConv1D(layers.Layer):
         }
         return out_config
 
+
 if __name__ == '__main__':
     from tensorflow.keras.models import Model
     from tensorflow.keras import Input
@@ -176,14 +176,13 @@ if __name__ == '__main__':
     low_input = Input(shape=(2500, 1))
     inputs = [high_input, low_input]
 
-    xh, xl = OctConv1D(filters=32,
-                       tau_mor=0.5,
-                       tau_rhy=2.0,
-                       fs=500,
-                       strides=1,
-                       mor_dilation=9,
-                       rhy_dilation=21
-                       )
+    xh, xl = MorRhyConv1D(filters=32,
+                          tau_mor=0.5,
+                          tau_rhy=2.0,
+                          fs=500,
+                          strides=1,
+                          mor_dilation=9,
+                          rhy_dilation=21)
     x = [xh, xl]
     model = Model(inputs, x)
     model.summary()
