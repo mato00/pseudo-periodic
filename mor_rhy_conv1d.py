@@ -1,22 +1,24 @@
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.models import Model
+from tensorflow.keras import Input
 import tensorflow.keras.backend as K
+
+from ncausal_conv import NCausalConv1D
 
 
 class MorRhyConv1D(layers.Layer):
     def __init__(self, filters, tau_mor, tau_rhy, fs,
-                 alpha=0.5, beta=2, dropout=0.2,
-                 strides=1, padding='same', mor_dilation=1,
+                 alpha=0.5,
+                 beta=2,
+                 dropout=0.2,
+                 strides=1,
+                 mor_dilation=1,
                  rhy_dilation=1,
-                 kernel_initializer='he_norm',
-                 kernel_regularizer=None,
-                 kernel_constraint=None,
-                 downsample=False,
                  **kwargs):
 
-        assert alpha >= 1
-        assert beta >= 0 and beta <= 1
+        assert alpha >= 0 and alpha <= 1
+        assert beta >= 1
         assert filters > 0 and isinstance(filters, int)
         super().__init__(**kwargs)
 
@@ -27,71 +29,54 @@ class MorRhyConv1D(layers.Layer):
         # optional values
         self.dropout = dropout
         self.strides = strides
-        self.padding = padding
         self.mor_dilation = mor_dilation
         self.rhy_dilation = rhy_dilation
-        self.kernel_initializer = kernel_initializer
-        self.kernel_regularizer = kernel_regularizer
-        self.kernel_constraint = kernel_constraint
-        self.downsample = downsample
-        if self.downsample:
-            self.down = 2
-        else:
-            self.down = 1
 
         # -> Low channels
         self.low_channels = int(self.filters * self.alpha)
         # -> high channels
         self.high_channels = self.filters - self.low_channels
 
-        self.low_fs = self.fs / (self.beta * self.down)
-        self.high_fs = self.fs / self.down
+        self.low_fs = self.fs / self.beta
+        self.high_fs = self.fs
 
-        self.mor_kernal_size = (int(tau_mor * self.high_fs) - 1 //
+        self.mor_kernel_size = (int(tau_mor * self.high_fs) - 1 //
                                 self.mor_dilation) + 1
-        self.rhy_kernal_size = (int(tau_rhy * self.low_fs) - 1 //
+        self.rhy_kernel_size = (int(tau_rhy * self.low_fs) - 1 //
                                 self.rhy_dilation) + 1
 
     def build(self, input_shape):
         assert len(input_shape) == 2
         assert len(input_shape[0]) == 3 and len(input_shape[1]) == 3
         # Assertion for high inputs
-        assert input_shape[0][1] // self.alpha >= self.kernel_size
+        assert input_shape[0][1] >= self.mor_kernel_size
         # Assertion for low inputs
         assert input_shape[0][1] // input_shape[1][1] == self.beta
         # channel last for Tensorflow
         assert K.image_data_format() == 'channels_last'
 
-        self.conv_high_high = layers.Conv1D(filters=self.high_channels,
-                                            kernel_size=self.mor_kernal_size,
-                                            padding=self.padding,
+        self.conv_high_high = NCausalConv1D(filters=self.high_channels,
+                                            kernel_size=self.mor_kernel_size,
                                             dilation_rate=self.mor_dilation,
                                             activation=tf.nn.leaky_relu,
-                                            kernel_initializer=self.kernel_initializer
                                             )
-        self.conv_low_high = layers.Conv1D(filters=self.high_channels,
-                                           kernel_size=self.rhy_kernal_size,
-                                           padding=self.padding,
+        self.conv_low_high = NCausalConv1D(filters=self.high_channels,
+                                           kernel_size=self.rhy_kernel_size,
                                            dilation_rate=self.rhy_dilation,
                                            activation=tf.nn.leaky_relu,
-                                           kernel_initializer=self.kernel_initializer
                                            )
-        self.conv_high_low = layers.Conv1D(filters=self.low_channels,
-                                           kernel_size=self.mor_kernal_size,
-                                           padding=self.padding,
+        self.conv_high_low = NCausalConv1D(filters=self.low_channels,
+                                           kernel_size=self.mor_kernel_size,
                                            dilation_rate=self.mor_dilation,
                                            activation=tf.nn.leaky_relu,
-                                           kernel_initializer=self.kernel_initializer
                                            )
-        self.conv_low_low = layers.Conv1D(filters=self.low_channels,
-                                          kernel_size=self.rhy_kernal_size,
-                                          padding=self.padding,
+        self.conv_low_low = NCausalConv1D(filters=self.low_channels,
+                                          kernel_size=self.rhy_kernel_size,
                                           dilation_rate=self.rhy_dilation,
                                           activation=tf.nn.leaky_relu,
-                                          kernel_initializer=self.kernel_initializer
                                           )
         self.upsampling1d = layers.UpSampling1D(size=self.beta)
-        self.averagepooling1d = layers.AveragePooling1D(size=self.beta)
+        self.averagepooling1d = layers.AveragePooling1D(pool_size=self.beta)
 
         self.layer_norm1 = layers.LayerNormalization()
         self.layer_norm2 = layers.LayerNormalization()
@@ -107,10 +92,6 @@ class MorRhyConv1D(layers.Layer):
         # Input = [X^H, X^L]
         assert len(inputs) == 2
         high_input, low_input = inputs
-
-        if self.downsample:
-            high_input = layers.AveragePooling1D()(high_input)
-            low_input = layers.AveragePooling1D()(low_input)
 
         # High -> High conv
         high_to_high = self.layer_norm1(self.conv_high_high(high_input))
@@ -157,19 +138,11 @@ class MorRhyConv1D(layers.Layer):
             "rhy_dilation": self.rhy_dilation,
             "mor_dilation": self.mor_dilation,
             "strides": self.strides,
-            "padding": self.padding,
-            "kernel_initializer": self.kernel_initializer,
-            "kernel_regularizer": self.kernel_regularizer,
-            "kernel_constraint": self.kernel_constraint,
-            "downsample": self.downsample
         }
         return out_config
 
 
 if __name__ == '__main__':
-    from tensorflow.keras.models import Model
-    from tensorflow.keras import Input
-
     visualize_model = True
 
     high_input = Input(shape=(5000, 1))
@@ -182,7 +155,7 @@ if __name__ == '__main__':
                           fs=500,
                           strides=1,
                           mor_dilation=9,
-                          rhy_dilation=21)
+                          rhy_dilation=21)(inputs)
     x = [xh, xl]
     model = Model(inputs, x)
     model.summary()

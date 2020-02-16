@@ -1,17 +1,23 @@
+import logging
+import os
+import pickle
+import time
+
 import tensorflow as tf
 tf.keras.backend.set_floatx('float64')
 from tensorflow.keras.callbacks import LearningRateScheduler, History
-from QRSNet import *
 
-import pickle, os, time, logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
+from qrs_net import QRSNet
 from prepare_dataset import SigDataset
+
 
 def loss_func(labels, preds):
     return tf.reduce_mean(tf.keras.losses.binary_crossentropy(labels, preds))
 
+
 def optimizer(lr):
     return tf.keras.optimizers.SGD(learning_rate=lr, momentum=0.9)
+
 
 def train_loop(data, labels, lr):
     with tf.GradientTape() as tape:

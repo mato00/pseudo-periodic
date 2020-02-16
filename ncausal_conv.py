@@ -8,6 +8,7 @@ class NCausalConv1D(layers.Conv1D):
                  kernel_size,
                  strides=1,
                  dilation_rate=1,
+                 pad=None,
                  activation=None,
                  use_bias=True,
                  kernel_initializer=None,
@@ -36,10 +37,14 @@ class NCausalConv1D(layers.Conv1D):
             bias_constraint=bias_constraint,
             **kwargs
         )
+        self.pad = pad
 
     def call(self, inputs):
-        padding = math.ceil((self.kernel_size[0]-1) * self.dilation_rate[0] / 2)
-        inputs = tf.pad(inputs, tf.constant([(0, 0), (1, 1), (0, 0)]) * padding)
+        if self.pad is not None:
+            inputs = tf.pad(inputs, tf.constant([(0, 0), (1, 1), (0, 0)]) * self.pad)
+        else:
+            pad = math.ceil((self.kernel_size[0]-1) * self.dilation_rate[0] / 2)
+            inputs = tf.pad(inputs, tf.constant([(0, 0), (1, 1), (0, 0)]) * pad)
 
         return super(NCausalConv1D, self).call(inputs)
 
@@ -52,10 +57,11 @@ if __name__ == '__main__':
 
     input = Input(shape=(5000, 1))
 
-    output = NCausalConv1D(filters=32,
-                           kernel_size=3,
-                           dilation_rate=2
-                           )(input)
+    output = NCausalConv1D(filters=64,
+                           kernel_size=8,
+                           strides=2,
+                           pad=3,
+                           activation=tf.nn.leaky_relu)(input)
     model = Model(input, output)
     model.summary()
 
