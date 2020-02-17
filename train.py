@@ -22,7 +22,7 @@ def loss_func(labels, preds):
     return tf.reduce_mean(tf.keras.losses.binary_crossentropy(labels, preds))
 
 @tf.function
-def optimizer(lr):
+def opt_func(lr):
     return tf.keras.optimizers.SGD(learning_rate=lr, momentum=0.9)
 
 @tf.function
@@ -32,8 +32,10 @@ def train_step(data, labels, lr):
         loss = loss_func(labels, logits)
     # Get the gradient
     gradients = tape.gradient(loss, model.trainable_variables)
+    # Get the optimizer
+    optimizer = opt_func(lr)
     # Update weights
-    optimizer(lr).apply_gradients(zip(gradients, model.trainable_variables))
+    optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
     train_loss(loss)
     train_acc(labels, logits)
