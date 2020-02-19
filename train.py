@@ -8,32 +8,34 @@ from tensorflow.keras.callbacks import LearningRateScheduler, History
 
 from qrs_net import QRSNet
 from prepare_dataset import SigDataset
+from solve_cudnn_error import *
 
+solve_cudnn_error()
 model = QRSNet()
 
 train_loss = tf.keras.metrics.Mean(name='train_loss')
-train_acc = tf.keras.metrics.SparseCategoricalAccuracy(name='train_acc')
+train_acc = tf.keras.metrics.BinaryAccuracy(name='train_acc')
 
 test_loss = tf.keras.metrics.Mean(name='test_loss')
-test_acc = tf.keras.metrics.SparseCategoricalAccuracy(name='test_acc')
+test_acc = tf.keras.metrics.BinaryAccuracy(name='test_acc')
 
 @tf.function
 def loss_func(labels, preds):
-    return tf.reduce_mean(tf.keras.losses.binary_crossentropy(labels, preds))
+    return tf.reduce_mean(tf.keras.losses.BinaryCrossentropy()(labels, preds))
 
-@tf.function
 def opt_func(lr):
-    return tf.keras.optimizers.SGD(learning_rate=lr, momentum=0.9)
+    return tf.keras.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True)
+    # return tf.keras.optimizers.Adam(learning_rate=lr)
 
 @tf.function
-def train_step(data, labels, lr):
+def train_step(data, labels, lr, optimizer):
+    tf.keras.backend.set_learning_phase(True)
     with tf.GradientTape() as tape:
-        logits = model(data)
+        logits = model(data, training=True)
+        logits = tf.squeeze(logits)
         loss = loss_func(labels, logits)
     # Get the gradient
     gradients = tape.gradient(loss, model.trainable_variables)
-    # Get the optimizer
-    optimizer = opt_func(lr)
     # Update weights
     optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
@@ -42,7 +44,11 @@ def train_step(data, labels, lr):
 
 @tf.function
 def test_step(data, labels):
-    logits = model(data)
+    tf.keras.backend.set_learning_phase(False)
+    logits = model(data, training=False)
+    logits = tf.squeeze(logits)
+    # labels_c = tf.reshape(labels, [tf.shape(labels)[0]*tf.shape(labels)[1], tf.shape(labels)[2]])
+    # logits_c = tf.reshape(logits, [tf.shape(logits)[0]*tf.shape(logits)[1], tf.shape(logits)[2]])
     t_loss = loss_func(labels, logits)
 
     test_loss(t_loss)
@@ -50,20 +56,23 @@ def test_step(data, labels):
 
 # Train the model
 def train_model(lr, batch_size, train_size, epoches, dataset, model_path):
+    optimizer = opt_func(lr)
     train_iters = train_size // batch_size
     start = time.time()
-    ckpt = tf.train.get_checkpoint_state(model_path)
+    ckpt_dir = os.path.dirname(model_path)
+    ckpt_path = tf.train.latest_checkpoint(ckpt_dir)
     best_acc = 0
-    if ckpt and ckpt.model_checkpoint_path:
-        model.load_weights(ckpt.model_checkpoint_path)
+    if ckpt_path:
+        model.load_weights(ckpt_path)
     for epoch in range(epoches):
         for step in range((epoch*train_iters), (epoch+1)*train_iters):
             batch_x, batch_y = dataset.inputs(is_training=True)
-            train_step(batch_x, batch_y, lr)
+            train_step(batch_x, batch_y, lr, optimizer)
             if step%10 == 0:
-                step_template = 'Epoch {}, Step {}, Loss: {}, Acc: {}'
+                step_template = 'Epoch {}, Step {}/{}, Loss: {}, Acc: {}'
                 print (step_template.format(epoch+1,
-                                            step,
+                                            step-(epoch*train_iters),
+                                            train_iters,
                                             train_loss.result(),
                                             train_acc.result()*100))
         # test data
@@ -84,11 +93,11 @@ if __name__ == '__main__':
     CV_PATH = './split_data/'
     LABEL_PATH = '/data/ECG/CPSC2019/aug_train/ref/'
     # LOG_PATH = './model_10s/log_cv1/'
-    MODEL_PATH = './model/model_cv1/'
+    MODEL_PATH = './model/my_checkpoint'
     SIG_LEN = 5000
     BATCH_SIZE = 20
-    EPOCHES = 200
-    LR = 0.1
+    EPOCHES = 500
+    LR = 0.01
     FOLD = 1
     TRAIN_SIZE = 1800
 

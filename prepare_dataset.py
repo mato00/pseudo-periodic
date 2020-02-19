@@ -37,6 +37,8 @@ class SigDataset():
         test_set = open(os.path.join(self.cv_path, 'test_cv'+str(self.fold)+'.txt'), 'r').read().splitlines()
         train_data_list = np.asarray(random.sample(train_set, self.batch_size))
         test_data_list = np.asarray(test_set)
+        mor_data = []
+        rhy_data = []
         train_data = []
         train_labels = []
         test_data = []
@@ -46,17 +48,20 @@ class SigDataset():
                 sample_name = sample_path.split('/')[-1].split('.')[0]
                 index = sample_name.split('_')[1]
                 label_path = os.path.join(self.label_path, 'R_'+index+'.npy')
-                sample = np.load(sample_path)
+                mor_sample = np.load(sample_path)
+                rhy_sample = ep.downsample(mor_sample, 500, 250)
                 label = np.load(label_path)
 
-                train_data.append(sample)
+                mor_data.append(mor_sample)
+                rhy_data.append(rhy_sample)
                 train_labels.append(label)
 
-            train_data = np.asarray(train_data)
+            mor_data = np.asarray(mor_data)
+            rhy_data = np.asarray(rhy_data)
+            mor_data = np.expand_dims(mor_data, -1)
+            rhy_data = np.expand_dims(rhy_data, -1)
+            train_data = [mor_data, rhy_data]
             train_labels = np.asarray(train_labels)
-
-            train_data = np.expand_dims(train_data, -1)
-            # train_labels = np.expand_dims(train_labels, -1)
 
             return train_data, train_labels
         else:
@@ -64,17 +69,20 @@ class SigDataset():
                 sample_name = sample_path.split('/')[-1].split('.')[0]
                 index = sample_name.split('_')[1]
                 label_path = os.path.join(self.label_path, 'R_'+index+'.npy')
-                sample = np.load(sample_path)
+                mor_sample = np.load(sample_path)
+                rhy_sample = ep.downsample(mor_sample, 500, 250)
                 label = np.load(label_path)
 
-                test_data.append(sample)
+                mor_data.append(mor_sample)
+                rhy_data.append(rhy_sample)
                 test_labels.append(label)
 
-            test_data = np.asarray(test_data)
+            mor_data = np.asarray(mor_data)
+            rhy_data = np.asarray(rhy_data)
+            mor_data = np.expand_dims(mor_data, -1)
+            rhy_data = np.expand_dims(rhy_data, -1)
+            test_data = [mor_data, rhy_data]
             test_labels = np.asarray(test_labels)
-
-            test_data = np.expand_dims(test_data, -1)
-            # test_labels = np.expand_dims(test_labels, -1)
 
             return test_data, test_labels
 

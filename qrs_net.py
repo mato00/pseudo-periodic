@@ -41,22 +41,22 @@ class QRSNet(Model):
                                         rhy_dilation=32,
                                         mor_dilation=32
                                         )
-        self.mconv1d_1 = NCausalConv1D(filters=16,
+        self.mconv1d_1 = NCausalConv1D(filters=32,
                                        kernel_size=16,
                                        strides=2,
                                        pad=7,
                                        activation=tf.nn.leaky_relu
                                        )
-        self.rconv1d_1 = NCausalConv1D(filters=16,
+        self.rconv1d_1 = NCausalConv1D(filters=32,
                                        kernel_size=16,
                                        strides=2,
                                        pad=7,
                                        activation=tf.nn.leaky_relu
                                        )
-        self.layer_norm1 = layers.LayerNormalization()
-        self.layer_norm2 = layers.LayerNormalization()
+        self.batch_norm1 = layers.BatchNormalization()
+        self.batch_norm2 = layers.BatchNormalization()
         # 250Hz
-        self.m_rconv1d_4 = MorRhyConv1D(filters=64,
+        self.m_rconv1d_4 = MorRhyConv1D(filters=32,
                                         tau_mor=0.1,
                                         tau_rhy=0.5,
                                         fs=250,
@@ -66,7 +66,7 @@ class QRSNet(Model):
                                         rhy_dilation=4,
                                         mor_dilation=4
                                         )
-        self.m_rconv1d_5 = MorRhyConv1D(filters=64,
+        self.m_rconv1d_5 = MorRhyConv1D(filters=32,
                                         tau_mor=0.2,
                                         tau_rhy=1.0,
                                         fs=250,
@@ -76,7 +76,7 @@ class QRSNet(Model):
                                         rhy_dilation=8,
                                         mor_dilation=8
                                         )
-        self.m_rconv1d_6 = MorRhyConv1D(filters=64,
+        self.m_rconv1d_6 = MorRhyConv1D(filters=32,
                                         tau_mor=0.4,
                                         tau_rhy=2.0,
                                         fs=250,
@@ -98,10 +98,10 @@ class QRSNet(Model):
                                        pad=3,
                                        activation=tf.nn.leaky_relu
                                        )
-        self.layer_norm3 = layers.LayerNormalization()
-        self.layer_norm4 = layers.LayerNormalization()
+        self.batch_norm3 = layers.BatchNormalization()
+        self.batch_norm4 = layers.BatchNormalization()
         # 125Hz, 125Hz -> 62.5Hz
-        self.m_rconv1d_7 = MorRhyConv1D(filters=256,
+        self.m_rconv1d_7 = MorRhyConv1D(filters=64,
                                         tau_mor=0.1,
                                         tau_rhy=0.5,
                                         fs=125,
@@ -111,7 +111,7 @@ class QRSNet(Model):
                                         rhy_dilation=2,
                                         mor_dilation=2
                                         )
-        self.m_rconv1d_8 = MorRhyConv1D(filters=256,
+        self.m_rconv1d_8 = MorRhyConv1D(filters=64,
                                         tau_mor=0.2,
                                         tau_rhy=1.0,
                                         fs=125,
@@ -121,7 +121,7 @@ class QRSNet(Model):
                                         rhy_dilation=4,
                                         mor_dilation=4
                                         )
-        self.m_rconv1d_9 = MorRhyConv1D(filters=256,
+        self.m_rconv1d_9 = MorRhyConv1D(filters=64,
                                         tau_mor=0.4,
                                         tau_rhy=2.0,
                                         fs=125,
@@ -131,48 +131,48 @@ class QRSNet(Model):
                                         rhy_dilation=8,
                                         mor_dilation=8
                                         )
-        self.mconv1d_3 = NCausalConv1D(filters=256,
+        self.mconv1d_3 = NCausalConv1D(filters=128,
                                        kernel_size=4,
                                        strides=2,
                                        pad=1,
                                        activation=tf.nn.leaky_relu
                                        )
-        self.rconv1d_3 = layers.Dense(256, activation=tf.nn.leaky_relu)
-        self.layer_norm5 = layers.LayerNormalization()
-        self.layer_norm6 = layers.LayerNormalization()
+        self.rconv1d_3 = layers.Dense(128, activation=tf.nn.leaky_relu)
+        self.batch_norm5 = layers.BatchNormalization()
+        self.batch_norm6 = layers.BatchNormalization()
         # output
-        self.out = layers.Dense(2, activation='sigmoid')
+        self.dense1 = layers.Dense(64, activation=tf.nn.leaky_relu)
+        self.out = layers.Dense(1, activation='sigmoid')
 
-    def call(self, inputs):
+    def call(self, inputs, training=True):
         # 500Hz
-        mor_input = inputs
-        rhy_input = layers.AveragePooling1D(2)(inputs)
-        mor_feat, rhy_feat = self.m_rconv1d_1([mor_input, rhy_input])
-        mor_feat, rhy_feat = self.m_rconv1d_2([mor_feat, rhy_feat])
-        mor_feat, rhy_feat = self.m_rconv1d_3([mor_feat, rhy_feat])
+        mor_feat, rhy_feat = self.m_rconv1d_1(inputs, is_training=training)
+        mor_feat, rhy_feat = self.m_rconv1d_2([mor_feat, rhy_feat], is_training=training)
+        mor_feat, rhy_feat = self.m_rconv1d_3([mor_feat, rhy_feat], is_training=training)
         mor_feat = self.mconv1d_1(mor_feat)
-        mor_feat = self.layer_norm1(mor_feat)
+        mor_feat = self.batch_norm1(mor_feat, training=training)
         rhy_feat = self.rconv1d_1(rhy_feat)
-        rhy_feat = self.layer_norm2(rhy_feat)
+        rhy_feat = self.batch_norm2(rhy_feat, training=training)
         # 250Hz
-        mor_feat, rhy_feat = self.m_rconv1d_4([mor_feat, rhy_feat])
-        mor_feat, rhy_feat = self.m_rconv1d_5([mor_feat, rhy_feat])
-        mor_feat, rhy_feat = self.m_rconv1d_6([mor_feat, rhy_feat])
+        mor_feat, rhy_feat = self.m_rconv1d_4([mor_feat, rhy_feat], is_training=training)
+        mor_feat, rhy_feat = self.m_rconv1d_5([mor_feat, rhy_feat], is_training=training)
+        mor_feat, rhy_feat = self.m_rconv1d_6([mor_feat, rhy_feat], is_training=training)
         mor_feat = self.mconv1d_2(mor_feat)
-        mor_feat = self.layer_norm3(mor_feat)
+        mor_feat = self.batch_norm3(mor_feat, training=training)
         rhy_feat = self.rconv1d_2(rhy_feat)
-        rhy_feat = self.layer_norm4(rhy_feat)
+        rhy_feat = self.batch_norm4(rhy_feat, training=training)
         # 125Hz, 125Hz -> 62.5Hz
-        mor_feat, rhy_feat = self.m_rconv1d_7([mor_feat, rhy_feat])
-        mor_feat, rhy_feat = self.m_rconv1d_8([mor_feat, rhy_feat])
-        mor_feat, rhy_feat = self.m_rconv1d_9([mor_feat, rhy_feat])
+        mor_feat, rhy_feat = self.m_rconv1d_7([mor_feat, rhy_feat], is_training=training)
+        mor_feat, rhy_feat = self.m_rconv1d_8([mor_feat, rhy_feat], is_training=training)
+        mor_feat, rhy_feat = self.m_rconv1d_9([mor_feat, rhy_feat], is_training=training)
         mor_feat = self.mconv1d_3(mor_feat)
-        mor_feat = self.layer_norm5(mor_feat)
+        mor_feat = self.batch_norm5(mor_feat, training=training)
         rhy_feat = self.rconv1d_3(rhy_feat)
-        rhy_feat = self.layer_norm6(rhy_feat)
+        rhy_feat = self.batch_norm6(rhy_feat, training=training)
         # Add mor and rhy
-        rhy_feat = layers.add([mor_feat, rhy_feat])
+        rhy_feat = tf.concat([mor_feat, rhy_feat], -1)
         # out
+        rhy_feat = self.dense1(rhy_feat)
         rhy_out = self.out(rhy_feat)
 
         return rhy_out

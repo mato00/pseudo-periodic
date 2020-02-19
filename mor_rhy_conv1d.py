@@ -78,42 +78,39 @@ class MorRhyConv1D(layers.Layer):
         self.upsampling1d = layers.UpSampling1D(size=self.beta)
         self.averagepooling1d = layers.AveragePooling1D(pool_size=self.beta)
 
-        self.layer_norm1 = layers.LayerNormalization()
-        self.layer_norm2 = layers.LayerNormalization()
-        self.layer_norm3 = layers.LayerNormalization()
-        self.layer_norm4 = layers.LayerNormalization()
+        self.batch_norm1 = layers.BatchNormalization()
+        self.batch_norm2 = layers.BatchNormalization()
+        self.batch_norm3 = layers.BatchNormalization()
+        self.batch_norm4 = layers.BatchNormalization()
 
         self.dropout_high = layers.Dropout(self.dropout, [tf.constant(1), tf.constant(1), tf.constant(self.high_channels)])
         self.dropout_low = layers.Dropout(self.dropout, [tf.constant(1), tf.constant(1), tf.constant(self.low_channels)])
 
         super().build(input_shape)
 
-    def call(self, inputs):
+    def call(self, inputs, is_training=True):
         # Input = [X^H, X^L]
         assert len(inputs) == 2
         high_input, low_input = inputs
 
         # High -> High conv
-        high_to_high = self.layer_norm1(self.conv_high_high(high_input))
-        high_to_high = self.dropout_high(high_to_high)
+        high_to_high = self.batch_norm1(self.conv_high_high(high_input), training=is_training)
+        high_to_high = self.dropout_high(high_to_high, training=is_training)
         # Low -> High conv
-        low_to_high = self.layer_norm2(self.conv_low_high(low_input))
-        low_to_high = self.dropout_low(low_to_high)
+        low_to_high = self.batch_norm2(self.conv_low_high(low_input), training=is_training)
+        low_to_high = self.dropout_low(low_to_high, training=is_training)
         low_to_high = self.upsampling1d(low_to_high)
         # High -> Low conv
-        high_to_low = self.layer_norm3(self.conv_high_low(high_input))
-        high_to_low = self.dropout_high(high_to_low)
+        high_to_low = self.batch_norm3(self.conv_high_low(high_input), training=is_training)
+        high_to_low = self.dropout_high(high_to_low, training=is_training)
         high_to_low = self.averagepooling1d(high_to_low)
         # Low -> Low conv
-        low_to_low = self.layer_norm4(self.conv_low_low(low_input))
-        low_to_low = self.dropout_low(low_to_low)
+        low_to_low = self.batch_norm4(self.conv_low_low(low_input), training=is_training)
+        low_to_low = self.dropout_low(low_to_low, training=is_training)
 
-        # Cross Add
-        high_add = layers.add([high_to_high, low_to_high])
-        low_add = layers.add([high_to_low, low_to_low])
-
-        high_add = tf.nn.leaky_relu(high_add)
-        low_add = tf.nn.leaky_relu(low_add)
+        # Cross Concat
+        high_add = tf.concat([high_to_high, low_to_high], -1)
+        low_add = tf.concat([high_to_low, low_to_low], -1)
 
         return [high_add, low_add]
 
