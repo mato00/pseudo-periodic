@@ -16,9 +16,9 @@ class QRSNet(Model):
                                         tau_rhy=0.5,
                                         fs=500,
                                         alpha=0.5,
-                                        beta=2,
+                                        beta=4,
                                         dropout=0.2,
-                                        rhy_dilation=8,
+                                        rhy_dilation=4,
                                         mor_dilation=8
                                         )
         self.m_rconv1d_2 = MorRhyConv1D(filters=16,
@@ -26,9 +26,9 @@ class QRSNet(Model):
                                         tau_rhy=1.0,
                                         fs=500,
                                         alpha=0.5,
-                                        beta=2,
+                                        beta=4,
                                         dropout=0.2,
-                                        rhy_dilation=16,
+                                        rhy_dilation=8,
                                         mor_dilation=16
                                         )
         self.m_rconv1d_3 = MorRhyConv1D(filters=16,
@@ -36,9 +36,9 @@ class QRSNet(Model):
                                         tau_rhy=2.0,
                                         fs=500,
                                         alpha=0.5,
-                                        beta=2,
+                                        beta=4,
                                         dropout=0.2,
-                                        rhy_dilation=32,
+                                        rhy_dilation=16,
                                         mor_dilation=32
                                         )
         self.mconv1d_1 = NCausalConv1D(filters=32,
@@ -61,9 +61,9 @@ class QRSNet(Model):
                                         tau_rhy=0.5,
                                         fs=250,
                                         alpha=0.5,
-                                        beta=2,
+                                        beta=4,
                                         dropout=0.2,
-                                        rhy_dilation=4,
+                                        rhy_dilation=2,
                                         mor_dilation=4
                                         )
         self.m_rconv1d_5 = MorRhyConv1D(filters=32,
@@ -71,9 +71,9 @@ class QRSNet(Model):
                                         tau_rhy=1.0,
                                         fs=250,
                                         alpha=0.5,
-                                        beta=2,
+                                        beta=4,
                                         dropout=0.2,
-                                        rhy_dilation=8,
+                                        rhy_dilation=4,
                                         mor_dilation=8
                                         )
         self.m_rconv1d_6 = MorRhyConv1D(filters=32,
@@ -81,10 +81,10 @@ class QRSNet(Model):
                                         tau_rhy=2.0,
                                         fs=250,
                                         alpha=0.5,
-                                        beta=2,
+                                        beta=4,
                                         dropout=0.2,
-                                        rhy_dilation=16,
-                                        mor_dilation=16
+                                        rhy_dilation=8,
+                                        mor_dilation=16,
                                         )
         self.mconv1d_2 = NCausalConv1D(filters=64,
                                        kernel_size=8,
@@ -106,9 +106,9 @@ class QRSNet(Model):
                                         tau_rhy=0.5,
                                         fs=125,
                                         alpha=0.5,
-                                        beta=2,
+                                        beta=4,
                                         dropout=0.2,
-                                        rhy_dilation=2,
+                                        rhy_dilation=1,
                                         mor_dilation=2
                                         )
         self.m_rconv1d_8 = MorRhyConv1D(filters=64,
@@ -116,9 +116,9 @@ class QRSNet(Model):
                                         tau_rhy=1.0,
                                         fs=125,
                                         alpha=0.5,
-                                        beta=2,
+                                        beta=4,
                                         dropout=0.2,
-                                        rhy_dilation=4,
+                                        rhy_dilation=2,
                                         mor_dilation=4
                                         )
         self.m_rconv1d_9 = MorRhyConv1D(filters=64,
@@ -126,15 +126,15 @@ class QRSNet(Model):
                                         tau_rhy=2.0,
                                         fs=125,
                                         alpha=0.5,
-                                        beta=2,
+                                        beta=4,
                                         dropout=0.2,
-                                        rhy_dilation=8,
+                                        rhy_dilation=4,
                                         mor_dilation=8
                                         )
         self.mconv1d_3 = NCausalConv1D(filters=128,
                                        kernel_size=4,
-                                       strides=2,
-                                       pad=1,
+                                       strides=4,
+                                       pad=0,
                                        activation=tf.nn.leaky_relu
                                        )
         self.rconv1d_3 = layers.Dense(128, activation=tf.nn.leaky_relu)

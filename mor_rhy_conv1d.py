@@ -75,6 +75,8 @@ class MorRhyConv1D(layers.Layer):
                                           dilation_rate=self.rhy_dilation,
                                           activation=tf.nn.leaky_relu,
                                           )
+        self.high_cross = layers.Conv1D(self.filters, 1, padding='same')
+        self.low_cross = layers.Conv1D(self.filters, 1, padding='same')
         self.upsampling1d = layers.UpSampling1D(size=self.beta)
         self.averagepooling1d = layers.AveragePooling1D(pool_size=self.beta)
 
@@ -109,8 +111,13 @@ class MorRhyConv1D(layers.Layer):
         low_to_low = self.dropout_low(low_to_low, training=is_training)
 
         # Cross Concat
+        if low_to_high.shape[1] != high_to_high.shape[1]:
+            low_to_high = tf.pad(low_to_high, tf.constant([(0, 0), (1, 1), (0, 0)]) *
+                                 (high_to_high.shape[1]-low_to_high.shape[1])//2)
         high_add = tf.concat([high_to_high, low_to_high], -1)
         low_add = tf.concat([high_to_low, low_to_low], -1)
+        high_add = self.high_cross(high_add)
+        low_add = self.low_cross(low_add)
 
         return [high_add, low_add]
 

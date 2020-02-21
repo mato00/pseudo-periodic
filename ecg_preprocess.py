@@ -223,23 +223,9 @@ def ecg_enhance(ecg, ann, fs):
 '''
 
 def ecg_enhance(ecg, ann, fs):
-    ecg_en = []
+    mor_en = []
+    rhy_en = []
     ann_en = []
-
-    ecg = pp(ecg)
-
-    ecg_lp = ecg - lowpass_filter(ecg, 0.05, fs)
-    ecg_hp = ecg_lp - highpass_filter(ecg_lp, 45, fs)
-
-    ann_d = list(map(lambda x: int(round((x-1)/8)), ann))
-    ann_target = np.zeros([625, ], dtype=np.int)
-
-    ecg_period = preprocessing.minmax_scale(ecg_hp)
-
-    for ann in ann_d:
-        ann_target[ann-5: ann+5] += 1
-
-    ann_target = convert_to_one_hot(ann_target, 2)
 
     ecg_en.append(ecg_period)
     ann_en.append(ann_target)
@@ -254,23 +240,14 @@ def ecg_enhance(ecg, ann, fs):
     ecg_en.append(ecg_add1)
     ann_en.append(ann_target)
 
-    adddb3_start = random.uniform(0, 7)
+    adddb2_start = random.uniform(0, 7)
     delta_t = random.uniform(0, 3)
     amp = random.uniform(0.5, 1)
-    ecg_add3 = ecg_period.copy()
-    ecg_add3[int(adddb3_start*fs): int((adddb3_start+delta_t)*fs)] -= amp
-    ecg_add3 = preprocessing.minmax_scale(ecg_add3)
-
-    ecg_en.append(ecg_add3)
-    ann_en.append(ann_target)
-
-    # freq = random.uniform(8, 16)
-    sin_n = [0.1 * math.sin(2 * math.pi * 8 * t / 5000) for t in range(5000)]
     ecg_add2 = ecg_period.copy()
-    ecg_add2 += sin_n
+    ecg_add2[int(adddb2_start*fs): int((adddb2_start+delta_t)*fs)] -= amp
     ecg_add2 = preprocessing.minmax_scale(ecg_add2)
 
-    ecg_en.append(ecg_add2)
+    ecg_en.append(ecg_add3)
     ann_en.append(ann_target)
 
     ecg_add4 = ecg_period.copy()

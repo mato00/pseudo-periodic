@@ -1,0 +1,4 @@
+Total File Number: 1587
+
+R Detection Acc: 0.8634
+HR Detection Acc: 0.9349
