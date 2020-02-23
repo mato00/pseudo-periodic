@@ -5,14 +5,15 @@ def CPSC2019_challenge(result):
     rpos = []
     pre = 0
     last = len(pos)
-    for j in np.where(np.diff(pos) > 40)[0]:
-        if j - pre > 40:
+    for j in np.where(np.diff(pos) > 20)[0]:
+        if j - pre > 20:
             rpos.append(round((pos[pre] + pos[j]) / 2) - 1)
         pre = j + 1
 
     rpos.append(round((pos[pre] + pos[last-1]) / 2) - 1)
 
     qrs = np.array(rpos)
+    print(qrs)
     qrs_diff = np.diff(qrs)
     check = True
 

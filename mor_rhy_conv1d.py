@@ -4,6 +4,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras import Input
 import tensorflow.keras.backend as K
 
+from bi_gru import BiGRUCell
 from ncausal_conv import NCausalConv1D
 
 
@@ -75,6 +76,8 @@ class MorRhyConv1D(layers.Layer):
                                           dilation_rate=self.rhy_dilation,
                                           activation=tf.nn.leaky_relu,
                                           )
+        # self.bi_gru = BiGRUCell(rnn_size=self.filters,
+        #                         dropout=self.dropout)
         self.high_cross = layers.Conv1D(self.filters, 1, padding='same')
         self.low_cross = layers.Conv1D(self.filters, 1, padding='same')
         self.upsampling1d = layers.UpSampling1D(size=self.beta)
@@ -118,6 +121,7 @@ class MorRhyConv1D(layers.Layer):
         low_add = tf.concat([high_to_low, low_to_low], -1)
         high_add = self.high_cross(high_add)
         low_add = self.low_cross(low_add)
+        # low_add = self.bi_gru(low_add, training=is_training)
 
         return [high_add, low_add]
 

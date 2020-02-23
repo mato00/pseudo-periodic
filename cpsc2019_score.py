@@ -47,7 +47,7 @@ def load_ans(model, data_path, rpos_path, pic_path, fs):
         ecg_data = sio.loadmat(ecg_path)['ecg'].squeeze()
         ecg_data = ep.pp(ecg_data)
         ecg_lp = ecg_data - ep.lowpass_filter(ecg_data, 0.1, 500)
-        test_ecg = ecg_lp - ep.highpass_filter(ecg_lp, 45, 500)
+        test_ecg = ecg_lp - ep.highpass_filter(ecg_lp, 65, 500)
 
         r_ref = sio.loadmat(ref_path)['R_peak'].squeeze()
         r_ref = r_ref[(r_ref >= 0.5*fs) & (r_ref <= 9.5*fs)]
@@ -56,21 +56,21 @@ def load_ans(model, data_path, rpos_path, pic_path, fs):
         ann_target = np.zeros([5000, ], dtype=np.int)
         ann_d = list(map(lambda x: int(round((x-1))), r_ref))
         for ann in ann_d:
-            ann_target[ann-40: ann+40] += 1
+            ann_target[ann-80: ann+80] += 1
 
         r_hr = np.array([loc for loc in r_ref if
                         (loc > 5.5 * fs and loc < len(ecg_data) - 0.5 * fs)])
 
-        ecg_period = preprocessing.minmax_scale(test_ecg)
+        ecg_period = preprocessing.scale(test_ecg)
         mor_period = ecg_period
-        rhy_period = ep.downsample(ecg_period, 500, 250)
+        rhy_period = ep.downsample(ecg_period, 500, 125)
         mor_period = np.expand_dims(mor_period, 0)
         mor_period = np.expand_dims(mor_period, -1)
         rhy_period = np.expand_dims(rhy_period, 0)
         rhy_period = np.expand_dims(rhy_period, -1)
 
-        pred = qrs_detect([mor_period, rhy_period], model, threshold=0.5)
-        up_pred = np.array([[i] * 8 for i in pred]).flatten()
+        pred = qrs_detect([mor_period, rhy_period], model, threshold=0.3)
+        up_pred = np.array([[i] * 16 for i in pred]).flatten()
 
         plt.figure(figsize=(30,6))
         plt.plot(up_pred, color='b')
@@ -150,8 +150,8 @@ def score(r_ref, hr_ref, r_ans, hr_ans, fs_, thr_, rpos_files_):
 
 if __name__ == '__main__':
     MODEL_PATH = './model/'
-    DATA_PATH = '/data/ECG/CPSC2019/test/data/'
-    RPOS_PATH = '/data/ECG/CPSC2019/test/ref/'
+    DATA_PATH = '/data/ECG/CPSC2019/debug/data/'
+    RPOS_PATH = '/data/ECG/CPSC2019/debug/ref/'
     PIC_PATH = '../pseudo_periodic_result/pic_result/'
     THR= 0.075
     FS = 500

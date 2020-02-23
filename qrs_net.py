@@ -3,6 +3,7 @@ from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 from tensorflow.keras import Input
 
+from bi_gru import BiGRUCell
 from ncausal_conv import NCausalConv1D
 from mor_rhy_conv1d import MorRhyConv1D
 
@@ -137,7 +138,9 @@ class QRSNet(Model):
                                        pad=0,
                                        activation=tf.nn.leaky_relu
                                        )
-        self.rconv1d_3 = layers.Dense(128, activation=tf.nn.leaky_relu)
+        # self.rconv1d_3 = layers.Dense(128, activation=tf.nn.leaky_relu)
+        self.bi_gru = BiGRUCell(rnn_size=128,
+                                dropout=0.2)
         self.batch_norm5 = layers.BatchNormalization()
         self.batch_norm6 = layers.BatchNormalization()
         # output
@@ -167,7 +170,8 @@ class QRSNet(Model):
         mor_feat, rhy_feat = self.m_rconv1d_9([mor_feat, rhy_feat], is_training=training)
         mor_feat = self.mconv1d_3(mor_feat)
         mor_feat = self.batch_norm5(mor_feat, training=training)
-        rhy_feat = self.rconv1d_3(rhy_feat)
+        # rhy_feat = self.rconv1d_3(rhy_feat)
+        rhy_feat = self.bi_gru(rhy_feat, is_training=training)
         rhy_feat = self.batch_norm6(rhy_feat, training=training)
         # Add mor and rhy
         rhy_feat = tf.concat([mor_feat, rhy_feat], -1)
