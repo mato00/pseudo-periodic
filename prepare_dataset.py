@@ -49,7 +49,8 @@ class SigDataset():
                 index = sample_name.split('_')[1]
                 label_path = os.path.join(self.label_path, 'R_'+index+'.npy')
                 mor_sample = np.load(sample_path)
-                rhy_sample = ep.downsample(mor_sample, 500, 125)
+                rhy_sample = mor_sample - ep.highpass_filter(mor_sample, 15, 500)
+                rhy_sample = ep.downsample(rhy_sample, 500, 31.2)
                 label = np.load(label_path)
 
                 mor_data.append(mor_sample)
@@ -70,7 +71,8 @@ class SigDataset():
                 index = sample_name.split('_')[1]
                 label_path = os.path.join(self.label_path, 'R_'+index+'.npy')
                 mor_sample = np.load(sample_path)
-                rhy_sample = ep.downsample(mor_sample, 500, 125)
+                rhy_sample = mor_sample - ep.highpass_filter(mor_sample, 15, 500)
+                rhy_sample = ep.downsample(rhy_sample, 500, 31.2)
                 label = np.load(label_path)
 
                 mor_data.append(mor_sample)

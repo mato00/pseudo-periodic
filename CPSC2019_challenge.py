@@ -1,19 +1,22 @@
 import numpy as np
+np.set_printoptions(threshold=np.inf)
 
 def CPSC2019_challenge(result):
     pos=np.argwhere(result == 1).flatten()
+    # print (pos)
     rpos = []
     pre = 0
-    last = len(pos)
+    last = len(pos)-1
     for j in np.where(np.diff(pos) > 20)[0]:
         if j - pre > 20:
-            rpos.append(round((pos[pre] + pos[j]) / 2) - 1)
+            r_cand = round((3*pos[pre] + 2*pos[j]) / 5)
+            # print (r_cand)
+            rpos.append(r_cand - 1)
         pre = j + 1
 
-    rpos.append(round((pos[pre] + pos[last-1]) / 2) - 1)
+    rpos.append(round((3*pos[pre] + 2*pos[last]) / 5))
 
     qrs = np.array(rpos)
-    print(qrs)
     qrs_diff = np.diff(qrs)
     check = True
 

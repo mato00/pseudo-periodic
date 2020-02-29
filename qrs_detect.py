@@ -14,12 +14,13 @@ from solve_cudnn_error import *
 solve_cudnn_error()
 
 def qrs_detect(data, model, threshold):
-    preds = model.predict(data)
-    preds = np.squeeze(preds)
+    logits = model.predict(data)
+    logits = np.squeeze(logits)
+    preds = logits.copy()
     preds[preds >= threshold] = 1
     preds[preds < threshold] = 0
 
-    return preds
+    return logits, preds
 
 if __name__ == '__main__':
     MODEL_PATH = './model/'

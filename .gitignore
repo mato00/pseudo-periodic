@@ -1,4 +1,6 @@
 /__pycache__
 /model
 /split_data
+/.ipynb_checkpoints
 *.png
+*.txt

@@ -17,9 +17,9 @@ class QRSNet(Model):
                                         tau_rhy=0.5,
                                         fs=500,
                                         alpha=0.5,
-                                        beta=4,
+                                        beta=16,
                                         dropout=0.2,
-                                        rhy_dilation=4,
+                                        rhy_dilation=1,
                                         mor_dilation=8
                                         )
         self.m_rconv1d_2 = MorRhyConv1D(filters=16,
@@ -27,9 +27,9 @@ class QRSNet(Model):
                                         tau_rhy=1.0,
                                         fs=500,
                                         alpha=0.5,
-                                        beta=4,
+                                        beta=16,
                                         dropout=0.2,
-                                        rhy_dilation=8,
+                                        rhy_dilation=2,
                                         mor_dilation=16
                                         )
         self.m_rconv1d_3 = MorRhyConv1D(filters=16,
@@ -37,9 +37,9 @@ class QRSNet(Model):
                                         tau_rhy=2.0,
                                         fs=500,
                                         alpha=0.5,
-                                        beta=4,
+                                        beta=16,
                                         dropout=0.2,
-                                        rhy_dilation=16,
+                                        rhy_dilation=4,
                                         mor_dilation=32
                                         )
         self.mconv1d_1 = NCausalConv1D(filters=32,
@@ -48,12 +48,16 @@ class QRSNet(Model):
                                        pad=7,
                                        activation=tf.nn.leaky_relu
                                        )
+        """
         self.rconv1d_1 = NCausalConv1D(filters=32,
                                        kernel_size=16,
                                        strides=2,
                                        pad=7,
                                        activation=tf.nn.leaky_relu
                                        )
+        """
+        self.bi_gru_1 = BiGRUCell(rnn_size=32,
+                                  dropout=0.2)
         self.batch_norm1 = layers.BatchNormalization()
         self.batch_norm2 = layers.BatchNormalization()
         # 250Hz
@@ -62,9 +66,9 @@ class QRSNet(Model):
                                         tau_rhy=0.5,
                                         fs=250,
                                         alpha=0.5,
-                                        beta=4,
+                                        beta=8,
                                         dropout=0.2,
-                                        rhy_dilation=2,
+                                        rhy_dilation=1,
                                         mor_dilation=4
                                         )
         self.m_rconv1d_5 = MorRhyConv1D(filters=32,
@@ -72,9 +76,9 @@ class QRSNet(Model):
                                         tau_rhy=1.0,
                                         fs=250,
                                         alpha=0.5,
-                                        beta=4,
+                                        beta=8,
                                         dropout=0.2,
-                                        rhy_dilation=4,
+                                        rhy_dilation=2,
                                         mor_dilation=8
                                         )
         self.m_rconv1d_6 = MorRhyConv1D(filters=32,
@@ -82,9 +86,9 @@ class QRSNet(Model):
                                         tau_rhy=2.0,
                                         fs=250,
                                         alpha=0.5,
-                                        beta=4,
+                                        beta=8,
                                         dropout=0.2,
-                                        rhy_dilation=8,
+                                        rhy_dilation=4,
                                         mor_dilation=16,
                                         )
         self.mconv1d_2 = NCausalConv1D(filters=64,
@@ -93,12 +97,16 @@ class QRSNet(Model):
                                        pad=3,
                                        activation=tf.nn.leaky_relu
                                        )
+        """
         self.rconv1d_2 = NCausalConv1D(filters=64,
                                        kernel_size=8,
                                        strides=2,
                                        pad=3,
                                        activation=tf.nn.leaky_relu
                                        )
+        """
+        self.bi_gru_2 = BiGRUCell(rnn_size=64,
+                                  dropout=0.2)
         self.batch_norm3 = layers.BatchNormalization()
         self.batch_norm4 = layers.BatchNormalization()
         # 125Hz, 125Hz -> 62.5Hz
@@ -139,8 +147,8 @@ class QRSNet(Model):
                                        activation=tf.nn.leaky_relu
                                        )
         # self.rconv1d_3 = layers.Dense(128, activation=tf.nn.leaky_relu)
-        self.bi_gru = BiGRUCell(rnn_size=128,
-                                dropout=0.2)
+        self.bi_gru_3 = BiGRUCell(rnn_size=128,
+                                  dropout=0.2)
         self.batch_norm5 = layers.BatchNormalization()
         self.batch_norm6 = layers.BatchNormalization()
         # output
@@ -154,7 +162,8 @@ class QRSNet(Model):
         mor_feat, rhy_feat = self.m_rconv1d_3([mor_feat, rhy_feat], is_training=training)
         mor_feat = self.mconv1d_1(mor_feat)
         mor_feat = self.batch_norm1(mor_feat, training=training)
-        rhy_feat = self.rconv1d_1(rhy_feat)
+        # rhy_feat = self.rconv1d_1(rhy_feat)
+        rhy_feat = self.bi_gru_1(rhy_feat, is_training=training)
         rhy_feat = self.batch_norm2(rhy_feat, training=training)
         # 250Hz
         mor_feat, rhy_feat = self.m_rconv1d_4([mor_feat, rhy_feat], is_training=training)
@@ -162,7 +171,8 @@ class QRSNet(Model):
         mor_feat, rhy_feat = self.m_rconv1d_6([mor_feat, rhy_feat], is_training=training)
         mor_feat = self.mconv1d_2(mor_feat)
         mor_feat = self.batch_norm3(mor_feat, training=training)
-        rhy_feat = self.rconv1d_2(rhy_feat)
+        # rhy_feat = self.rconv1d_2(rhy_feat)
+        rhy_feat = self.bi_gru_2(rhy_feat, is_training=training)
         rhy_feat = self.batch_norm4(rhy_feat, training=training)
         # 125Hz, 125Hz -> 62.5Hz
         mor_feat, rhy_feat = self.m_rconv1d_7([mor_feat, rhy_feat], is_training=training)
@@ -171,7 +181,7 @@ class QRSNet(Model):
         mor_feat = self.mconv1d_3(mor_feat)
         mor_feat = self.batch_norm5(mor_feat, training=training)
         # rhy_feat = self.rconv1d_3(rhy_feat)
-        rhy_feat = self.bi_gru(rhy_feat, is_training=training)
+        rhy_feat = self.bi_gru_3(rhy_feat, is_training=training)
         rhy_feat = self.batch_norm6(rhy_feat, training=training)
         # Add mor and rhy
         rhy_feat = tf.concat([mor_feat, rhy_feat], -1)
@@ -185,10 +195,11 @@ class QRSNet(Model):
 if __name__ == '__main__':
     visualize_model = True
 
-    inputs = Input(shape=(5000, 1))
+    mor_inputs = Input(shape=(5000, 1))
+    rhy_inputs = Input(shape=(312, 1))
     qrs_net = QRSNet()
 
-    rhy_out = qrs_net(inputs)
+    rhy_out = qrs_net([mor_inputs, rhy_inputs])
     # model = Model(inputs, rhy_out)
     qrs_net.summary()
 
